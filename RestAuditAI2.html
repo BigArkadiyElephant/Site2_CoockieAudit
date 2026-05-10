@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>РестАудит — AI-помощник аудита ресторанного бизнеса</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'system-ui', 'sans-serif'],
+          mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+        }
+      }
+    }
+  }
+</script>
+<style>
+  html, body { font-family: 'Inter', system-ui, sans-serif; }
+  body { background: #0B0B0F; color: #E8E8EC; }
+  body.light { background: #FAFAFB; color: #16161D; }
+  .font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+  /* hide spinners */
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+
+  /* slider */
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    height: 4px; background: rgba(255,255,255,0.1);
+    border-radius: 999px; outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: linear-gradient(135deg, #6366F1, #EC4899);
+    cursor: pointer; box-shadow: 0 0 0 3px rgba(99,102,241,0.2), 0 4px 12px rgba(236,72,153,0.4);
+    transition: transform 0.15s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+  input[type=range]::-moz-range-thumb {
+    width: 18px; height: 18px; border-radius: 50%; border: none;
+    background: linear-gradient(135deg, #6366F1, #EC4899);
+    cursor: pointer;
+  }
+
+  body.light input[type=range] { background: rgba(0,0,0,0.08); }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); }
+
+  /* skeleton */
+  @keyframes shimmer {
+    0% { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
+  }
+  .skeleton {
+    background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite linear;
+  }
+
+  /* fade in */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .fade-up { animation: fadeUp 0.4s ease-out backwards; }
+
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0); }
+    50% { box-shadow: 0 0 0 8px rgba(99,102,241,0.1); }
+  }
+
+  /* light mode helpers */
+  body.light .bg-white\/\[0\.02\] { background: rgba(0,0,0,0.02); }
+  body.light .bg-white\/\[0\.025\] { background: rgba(0,0,0,0.025); }
+  body.light .bg-white\/\[0\.03\] { background: rgba(0,0,0,0.03); }
+  body.light .bg-white\/\[0\.04\] { background: rgba(0,0,0,0.04); }
+  body.light .bg-white\/\[0\.05\] { background: rgba(0,0,0,0.05); }
+  body.light .bg-white\/5 { background: rgba(0,0,0,0.04); }
+  body.light .bg-white\/10 { background: rgba(0,0,0,0.08); }
+  body.light .border-white\/5 { border-color: rgba(0,0,0,0.06); }
+  body.light .border-white\/10 { border-color: rgba(0,0,0,0.1); }
+  body.light .border-white\/20 { border-color: rgba(0,0,0,0.18); }
+  body.light .text-zinc-400 { color: #52525b; }
+  body.light .text-zinc-500 { color: #71717a; }
+  body.light .text-zinc-600 { color: #a1a1aa; }
+  body.light .hover\:bg-white\/10:hover { background: rgba(0,0,0,0.08); }
+  body.light .hover\:bg-white\/\[0\.05\]:hover { background: rgba(0,0,0,0.05); }
+  body.light .hover\:bg-white\/\[0\.04\]:hover { background: rgba(0,0,0,0.04); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/prop-types@15/prop-types.min.js"></script>
+<script crossorigin src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo, useRef, useReducer } = React;
+const {
+  Radar, RadarChart, PolarGrid, PolarAngleAxis,
+  BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell
+} = Recharts;
+
+// ============ ICONS (inline SVG, lucide-style 1.5px stroke) ============
+const Icon = ({ d, size = 16, stroke = 1.5, className = '' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round"
+    className={className}>{d}</svg>
+);
+
+const I = {
+  Sparkles: (p) => <Icon {...p} d={<><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></>}/>,
+  ArrowRight: (p) => <Icon {...p} d={<><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></>}/>,
+  ArrowLeft: (p) => <Icon {...p} d={<><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></>}/>,
+  Activity: (p) => <Icon {...p} d={<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>}/>,
+  Sun: (p) => <Icon {...p} d={<><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></>}/>,
+  Moon: (p) => <Icon {...p} d={<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>}/>,
+  Coffee: (p) => <Icon {...p} d={<><path d="M10 2v2"/><path d="M14 2v2"/><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/><path d="M6 2v2"/></>}/>,
+  Utensils: (p) => <Icon {...p} d={<><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></>}/>,
+  Pizza: (p) => <Icon {...p} d={<><path d="M15 11h.01"/><path d="M11 15h.01"/><path d="M16 16h.01"/><path d="m2 16 20 6-6-20A20 20 0 0 0 2 16"/><path d="M5.71 17.11a17.04 17.04 0 0 1 11.4-11.4"/></>}/>,
+  Wine: (p) => <Icon {...p} d={<><path d="M8 22h8"/><path d="M7 10h10"/><path d="M12 15v7"/><path d="M12 15a5 5 0 0 0 5-5c0-2-.5-4-2-8H9c-1.5 4-2 6-2 8a5 5 0 0 0 5 5Z"/></>}/>,
+  Truck: (p) => <Icon {...p} d={<><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></>}/>,
+  ChefHat: (p) => <Icon {...p} d={<><path d="M17 21a1 1 0 0 0 1-1v-5.35c0-.457.316-.844.727-1.041a4 4 0 0 0-2.134-7.589 5 5 0 0 0-9.186 0 4 4 0 0 0-2.134 7.588c.411.198.727.585.727 1.041V20a1 1 0 0 0 1 1Z"/><path d="M6 17h12"/></>}/>,
+  Dollar: (p) => <Icon {...p} d={<><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></>}/>,
+  BarChart: (p) => <Icon {...p} d={<><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></>}/>,
+  Shield: (p) => <Icon {...p} d={<><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/></>}/>,
+  Folder: (p) => <Icon {...p} d={<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>}/>,
+  Upload: (p) => <Icon {...p} d={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></>}/>,
+  Spreadsheet: (p) => <Icon {...p} d={<><path d="M14.5 22H18a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v3"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/><circle cx="8" cy="11" r="1.5"/></>}/>,
+  Check: (p) => <Icon {...p} d={<><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></>}/>,
+  X: (p) => <Icon {...p} d={<><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></>}/>,
+  AlertTriangle: (p) => <Icon {...p} d={<><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></>}/>,
+  Info: (p) => <Icon {...p} d={<><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></>}/>,
+  Download: (p) => <Icon {...p} d={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></>}/>,
+  Share: (p) => <Icon {...p} d={<><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></>}/>,
+  Save: (p) => <Icon {...p} d={<><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></>}/>,
+  Sliders: (p) => <Icon {...p} d={<><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/></>}/>,
+  ChevronDown: (p) => <Icon {...p} d={<path d="m6 9 6 6 6-6"/>}/>,
+  Zap: (p) => <Icon {...p} d={<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>}/>,
+  Target: (p) => <Icon {...p} d={<><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></>}/>,
+};
+
+// ============ DATA ============
+const CONCEPTS = [
+  { id:'fine_dining', name:'Fine Dining', emoji:'🍽️', desc:'Премиальный ресторан',
+    benchmarks:{foodCost:[28,35], laborCost:[30,35], drinkCost:[20,28]} },
+  { id:'coffee', name:'Кофейня', emoji:'☕', desc:'Кофе, выпечка, завтраки',
+    benchmarks:{foodCost:[22,28], laborCost:[25,30], drinkCost:[18,25]} },
+  { id:'fastfood', name:'Фастфуд', emoji:'🍔', desc:'QSR, быстрое питание',
+    benchmarks:{foodCost:[28,32], laborCost:[22,28], drinkCost:[15,22]} },
+  { id:'pizza', name:'Пиццерия', emoji:'🍕', desc:'Пицца, паста, dine-in',
+    benchmarks:{foodCost:[25,30], laborCost:[25,30], drinkCost:[18,25]} },
+  { id:'bar', name:'Бар', emoji:'🍷', desc:'Бар, паб, коктейльная',
+    benchmarks:{foodCost:[30,38], laborCost:[25,32], drinkCost:[18,25]} },
+  { id:'delivery', name:'Delivery', emoji:'🛵', desc:'Dark kitchen, доставка',
+    benchmarks:{foodCost:[30,35], laborCost:[18,25], drinkCost:[20,28]} },
+];
+
+const INITIAL_DATA = {
+  conceptId: '', revenue: 0, avgCheck: 0, tableTurnover: 0, seats: 0,
+  foodCost: 0, laborCost: 0, drinkCost: 0, rent: 0,
+  wastage: 0, inventoryGap: 0, discrepancies: 0, returns: 0,
+};
+
+// ============ ANIMATED NUMBER ============
+function AnimatedNumber({ value, format = (v) => Math.round(v).toLocaleString('ru-RU'), duration = 600, className = '' }) {
+  const [display, setDisplay] = useState(value);
+  const prevRef = useRef(value);
+  const rafRef = useRef(null);
+
+  useEffect(() => {
+    const start = prevRef.current; const end = value;
+    if (start === end) { setDisplay(end); return; }
+    const startTime = performance.now();
+    const tick = (now) => {
+      const t = Math.min(1, (now - startTime) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const current = start + (end - start) * eased;
+      setDisplay(current);
+      if (t < 1) rafRef.current = requestAnimationFrame(tick);
+      else prevRef.current = end;
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [value, duration]);
+
+  return <span className={className}>{format(display)}</span>;
+}
+
+// ============ HEADER ============
+function Header({ dark, setDark, onLogo, showBack, onBack }) {
+  return (
+    <header className="flex items-center justify-between px-5 lg:px-10 py-5 relative z-30">
+      <div className="flex items-center gap-3">
+        {showBack && (
+          <button onClick={onBack}
+            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-colors">
+            <I.ArrowLeft size={17} />
+          </button>
+        )}
+        <button onClick={onLogo} className="flex items-center gap-2.5 group">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-pink-500 grid place-items-center shadow-lg shadow-indigo-500/20 group-hover:shadow-indigo-500/40 transition-shadow">
+            <I.Activity size={18} stroke={2} className="text-white" />
+          </div>
+          <div className="flex flex-col leading-none">
+            <span className="text-[15px] font-semibold tracking-tight">РестАудит</span>
+            <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-widest mt-0.5">AI · v1.0</span>
+          </div>
+        </button>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" style={{boxShadow:'0 0 8px #34d399'}}></span>
+          <span className="text-xs text-zinc-400">AI online</span>
+        </div>
+        <button onClick={() => setDark(!dark)}
+          className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-colors">
+          {dark ? <I.Sun size={16} /> : <I.Moon size={16} />}
+        </button>
+      </div>
+    </header>
+  );
+}
+
+// ============ LANDING ============
+function Landing({ onStart, auditCount }) {
+  return (
+    <div className="px-5 lg:px-10 pt-4 pb-10 relative">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-gradient-to-br from-indigo-500/20 to-pink-500/20 blur-[120px] rounded-full pointer-events-none -z-10"></div>
+
+      <div className="max-w-5xl mx-auto text-center pt-6 lg:pt-14 fade-up">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm mb-7">
+          <I.Sparkles size={13} className="text-indigo-400" />
+          <span className="text-xs text-zinc-300">AI-аудит ресторанного бизнеса</span>
+        </div>
+
+        <h1 className="text-4xl md:text-6xl lg:text-7xl font-semibold tracking-tight leading-[1.05] mb-6">
+          Узнайте, где ваш ресторан<br/>
+          <span className="bg-gradient-to-r from-indigo-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent">теряет деньги.</span>
+          <span className="text-zinc-500"> За 3 минуты.</span>
+        </h1>
+
+        <p className="text-base md:text-lg text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+          Анализ фудкоста, лейборкоста, аномалий и рисков.
+          Сравнение с бенчмарками вашей концепции. Готовый план действий.
+        </p>
+
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+          <button onClick={onStart}
+            className="group relative inline-flex items-center gap-2.5 px-7 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 to-pink-500 text-white font-medium shadow-2xl shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-[1.02] active:scale-100 transition-all">
+            <span className="absolute inset-0 rounded-2xl bg-gradient-to-r from-indigo-400 to-pink-400 opacity-0 group-hover:opacity-100 transition-opacity blur-xl -z-10"></span>
+            Запустить аудит
+            <I.ArrowRight size={17} stroke={2} className="group-hover:translate-x-0.5 transition-transform" />
+          </button>
+          <span className="text-xs text-zinc-500">Бесплатно · Без регистрации</span>
+        </div>
+
+        <div className="inline-flex items-center gap-3 px-5 py-3 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-sm">
+          <div className="flex -space-x-2">
+            {[0,1,2,3].map(i => (
+              <div key={i} className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-pink-500 border-2"
+                style={{ borderColor:'#0B0B0F', filter:`hue-rotate(${i * 25}deg)` }}></div>
+            ))}
+          </div>
+          <div className="text-left">
+            <div className="font-mono text-base font-medium">
+              <AnimatedNumber value={auditCount} duration={1800} /> +
+            </div>
+            <div className="text-[11px] text-zinc-500 -mt-0.5">аудитов проведено</div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-12 max-w-3xl mx-auto">
+          {[
+            { v:'6', l:'концепций', sub:'fine dining → delivery' },
+            { v:'40+', l:'метрик', sub:'фуд, лейбор, аномалии' },
+            { v:'<3', l:'минуты', sub:'до готового отчёта' },
+            { v:'12%', l:'медиана', sub:'найденных потерь' },
+          ].map((s, i) => (
+            <div key={i} className="px-4 py-4 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-sm text-left hover:bg-white/[0.05] transition-colors fade-up"
+              style={{animationDelay:`${0.1 + i*0.06}s`}}>
+              <div className="font-mono text-2xl font-medium tracking-tight">{s.v}</div>
+              <div className="text-xs text-zinc-300 mt-0.5">{s.l}</div>
+              <div className="text-[10px] text-zinc-500 mt-1">{s.sub}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ TAB BUTTON ============
+function TabButton({ active, onClick, icon, label, badge }) {
+  return (
+    <button onClick={onClick}
+      className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm transition-all relative ${
+        active
+          ? 'bg-gradient-to-r from-indigo-500/15 to-pink-500/10 border border-indigo-500/30'
+          : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent'
+      }`}>
+      {active && <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-r-full bg-gradient-to-b from-indigo-400 to-pink-400"></span>}
+      {icon}
+      <span className="flex-1 text-left font-medium whitespace-nowrap">{label}</span>
+      {badge !== null && badge !== undefined && (
+        <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md ${active ? 'bg-white/10' : 'bg-white/5 text-zinc-500'}`}>
+          {badge}
+        </span>
+      )}
+    </button>
+  );
+}
+
+// ============ NUMERIC INPUT ============
+function NumInput({ label, value, onChange, suffix='', placeholder='0', warning=false, hint }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <label className="block">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs text-zinc-400">{label}</span>
+        {hint && <span className="text-[10px] text-zinc-600">{hint}</span>}
+      </div>
+      <div className={`relative flex items-center rounded-xl border transition-all ${
+        warning
+          ? 'border-rose-500/50 bg-rose-500/5'
+          : focused
+            ? 'border-indigo-400/60 bg-white/[0.04]'
+            : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.05]'
+      }`}
+      style={warning ? {boxShadow:'0 0 0 3px rgba(244,63,94,0.08)'} : focused ? {boxShadow:'0 0 0 3px rgba(99,102,241,0.1)'} : {}}>
+        <input type="number"
+          value={value === 0 ? '' : value}
+          onChange={(e) => onChange(e.target.value === '' ? 0 : Number(e.target.value))}
+          onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+          placeholder={placeholder}
+          className="w-full bg-transparent px-3.5 py-2.5 text-sm font-mono outline-none placeholder:text-zinc-600" />
+        {suffix && <span className="pr-3.5 text-xs text-zinc-500 font-mono">{suffix}</span>}
+        {warning && (
+          <div className="absolute -top-1.5 right-3 px-2 py-0.5 rounded-md bg-rose-500/90 text-[9px] text-white font-medium uppercase tracking-wider">
+            вне нормы
+          </div>
+        )}
+      </div>
+    </label>
+  );
+}
+
+// ============ CONCEPT CARD ============
+function ConceptCard({ concept, selected, onClick }) {
+  return (
+    <button onClick={onClick}
+      className={`text-left p-3.5 rounded-2xl border transition-all relative overflow-hidden ${
+        selected
+          ? 'border-indigo-400/50 bg-gradient-to-br from-indigo-500/10 to-pink-500/5'
+          : 'border-white/10 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/20'
+      }`}>
+      {selected && (
+        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-gradient-to-br from-indigo-400 to-pink-400 grid place-items-center">
+          <I.Check size={11} stroke={2.5} className="text-white" />
+        </div>
+      )}
+      <div className={`w-9 h-9 rounded-xl grid place-items-center transition-colors mb-2 ${
+        selected ? 'bg-gradient-to-br from-indigo-500 to-pink-500' : 'bg-white/5'
+      }`}>
+        <span className="text-base">{concept.emoji}</span>
+      </div>
+      <div className="text-sm font-medium">{concept.name}</div>
+      <div className="text-[11px] text-zinc-500 mt-0.5">{concept.desc}</div>
+      <div className="mt-2.5 flex items-center gap-1.5 text-[10px] font-mono text-zinc-600">
+        <span>FC {concept.benchmarks.foodCost[0]}–{concept.benchmarks.foodCost[1]}%</span>
+        <span>·</span>
+        <span>LC {concept.benchmarks.laborCost[0]}–{concept.benchmarks.laborCost[1]}%</span>
+      </div>
+    </button>
+  );
+}
+
+// ============ INPUT DASHBOARD ============
+function InputDashboard({ data, setData, onGenerate }) {
+  const [activeTab, setActiveTab] = useState('concept');
+  const concept = CONCEPTS.find(c => c.id === data.conceptId);
+
+  const fcWarn = concept && data.foodCost > 0 && (data.foodCost < concept.benchmarks.foodCost[0] - 3 || data.foodCost > concept.benchmarks.foodCost[1] + 3);
+  const lcWarn = concept && data.laborCost > 0 && (data.laborCost < concept.benchmarks.laborCost[0] - 3 || data.laborCost > concept.benchmarks.laborCost[1] + 3);
+  const dcWarn = concept && data.drinkCost > 0 && data.drinkCost > concept.benchmarks.drinkCost[1] + 3;
+  const wasteWarn = data.wastage > 5;
+  const invWarn = data.inventoryGap > 2;
+
+  const totalFilled = useMemo(() => {
+    let n = 0;
+    if (data.conceptId) n++;
+    if (data.revenue > 0) n++;
+    if (data.avgCheck > 0) n++;
+    if (data.tableTurnover > 0) n++;
+    if (data.foodCost > 0) n++;
+    if (data.laborCost > 0) n++;
+    if (data.drinkCost > 0) n++;
+    if (data.wastage > 0) n++;
+    if (data.inventoryGap > 0) n++;
+    return n;
+  }, [data]);
+
+  const canGenerate = data.conceptId && data.revenue > 0 && data.foodCost > 0 && data.laborCost > 0;
+
+  const tabBadges = {
+    concept: data.conceptId ? '✓' : null,
+    finance: [data.revenue, data.avgCheck, data.tableTurnover].filter(v => v > 0).length || null,
+    costs: [data.foodCost, data.laborCost, data.drinkCost].filter(v => v > 0).length || null,
+    risks: [data.wastage, data.inventoryGap, data.discrepancies].filter(v => v > 0).length || null,
+    import: null,
+  };
+
+  return (
+    <div className="px-5 lg:px-10 pb-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex items-end justify-between mb-5 fade-up">
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight">Введите данные</h2>
+            <p className="text-sm text-zinc-500 mt-1">Дашборд справа обновляется в реальном времени</p>
+          </div>
+          <div className="hidden sm:flex items-center gap-3">
+            <div className="text-right">
+              <div className="text-[11px] text-zinc-500 uppercase tracking-wider">заполнено</div>
+              <div className="font-mono text-sm">{totalFilled} / 9</div>
+            </div>
+            <div className="w-32 h-1.5 rounded-full bg-white/10 overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-indigo-400 to-pink-400 transition-all duration-500"
+                style={{ width: `${(totalFilled / 9) * 100}%` }}></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          {/* Tabs */}
+          <aside className="lg:col-span-2">
+            <div className="flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0">
+              <TabButton active={activeTab==='concept'} onClick={() => setActiveTab('concept')} icon={<I.Utensils size={16}/>} label="Концепция" badge={tabBadges.concept} />
+              <TabButton active={activeTab==='finance'} onClick={() => setActiveTab('finance')} icon={<I.Dollar size={16}/>} label="Финансы" badge={tabBadges.finance} />
+              <TabButton active={activeTab==='costs'} onClick={() => setActiveTab('costs')} icon={<I.BarChart size={16}/>} label="Косты" badge={tabBadges.costs} />
+              <TabButton active={activeTab==='risks'} onClick={() => setActiveTab('risks')} icon={<I.Shield size={16}/>} label="Риски" badge={tabBadges.risks} />
+              <TabButton active={activeTab==='import'} onClick={() => setActiveTab('import')} icon={<I.Folder size={16}/>} label="Импорт" badge={null} />
+            </div>
+          </aside>
+
+          {/* Form panel */}
+          <div className="lg:col-span-6">
+            <div className="rounded-2xl bg-white/[0.025] border border-white/10 backdrop-blur-sm p-5 lg:p-6 min-h-[460px]">
+              {activeTab === 'concept' && (
+                <div className="fade-up">
+                  <h3 className="text-base font-medium mb-1">Тип заведения</h3>
+                  <p className="text-xs text-zinc-500 mb-4">Влияет на бенчмарки и рекомендации</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    {CONCEPTS.map(c => (
+                      <ConceptCard key={c.id} concept={c} selected={data.conceptId === c.id}
+                        onClick={() => setData({ ...data, conceptId: c.id })} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'finance' && (
+                <div className="fade-up">
+                  <h3 className="text-base font-medium mb-1">Финансовые показатели</h3>
+                  <p className="text-xs text-zinc-500 mb-5">За последний полный месяц</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <NumInput label="Месячная выручка" value={data.revenue} onChange={(v)=>setData({...data, revenue:v})} suffix="₽" placeholder="2 500 000" hint="net, без НДС"/>
+                    <NumInput label="Средний чек" value={data.avgCheck} onChange={(v)=>setData({...data, avgCheck:v})} suffix="₽" placeholder="1 800"/>
+                    <NumInput label="Оборот столов" value={data.tableTurnover} onChange={(v)=>setData({...data, tableTurnover:v})} suffix="× / день" placeholder="2.5"/>
+                    <NumInput label="Кол-во посадочных" value={data.seats} onChange={(v)=>setData({...data, seats:v})} suffix="мест" placeholder="40"/>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'costs' && (
+                <div className="fade-up">
+                  <h3 className="text-base font-medium mb-1">Структура костов</h3>
+                  <p className="text-xs text-zinc-500 mb-5">
+                    {concept ? `Бенчмарк для «${concept.name}»: FC ${concept.benchmarks.foodCost[0]}–${concept.benchmarks.foodCost[1]}%, LC ${concept.benchmarks.laborCost[0]}–${concept.benchmarks.laborCost[1]}%` : 'Выберите концепцию для бенчмарков'}
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <NumInput label="Фудкост" value={data.foodCost} onChange={(v)=>setData({...data, foodCost:v})} suffix="%" placeholder="32" warning={fcWarn} hint={concept ? `норма ${concept.benchmarks.foodCost.join('–')}%` : null}/>
+                    <NumInput label="Лейборкост" value={data.laborCost} onChange={(v)=>setData({...data, laborCost:v})} suffix="%" placeholder="28" warning={lcWarn} hint={concept ? `норма ${concept.benchmarks.laborCost.join('–')}%` : null}/>
+                    <NumInput label="Кост напитков" value={data.drinkCost} onChange={(v)=>setData({...data, drinkCost:v})} suffix="%" placeholder="22" warning={dcWarn} hint={concept ? `норма ${concept.benchmarks.drinkCost.join('–')}%` : null}/>
+                    <NumInput label="Аренда + коммуналка" value={data.rent} onChange={(v)=>setData({...data, rent:v})} suffix="%" placeholder="12" hint="норма 8–15%"/>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'risks' && (
+                <div className="fade-up">
+                  <h3 className="text-base font-medium mb-1">Риски и операционные потери</h3>
+                  <p className="text-xs text-zinc-500 mb-5">Списания, расхождения, инвентаризация</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <NumInput label="Списания (waste)" value={data.wastage} onChange={(v)=>setData({...data, wastage:v})} suffix="%" placeholder="3" warning={wasteWarn} hint="норма ≤ 5%"/>
+                    <NumInput label="Расхождение инвентаризации" value={data.inventoryGap} onChange={(v)=>setData({...data, inventoryGap:v})} suffix="%" placeholder="1.5" warning={invWarn} hint="норма ≤ 2%"/>
+                    <NumInput label="Расхождения в чеках" value={data.discrepancies} onChange={(v)=>setData({...data, discrepancies:v})} suffix="₽ / мес" placeholder="20 000"/>
+                    <NumInput label="Возвраты блюд" value={data.returns} onChange={(v)=>setData({...data, returns:v})} suffix="%" placeholder="0.5" hint="норма ≤ 1%"/>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'import' && (
+                <div className="fade-up">
+                  <h3 className="text-base font-medium mb-1">Импорт из Excel/CSV</h3>
+                  <p className="text-xs text-zinc-500 mb-5">Iiko, R-Keeper, Poster — выгрузки за период</p>
+                  <div className="border-2 border-dashed border-white/10 hover:border-indigo-400/40 rounded-2xl p-10 text-center transition-colors cursor-pointer bg-white/[0.02]">
+                    <div className="grid place-items-center mb-3 text-zinc-500"><I.Upload size={32} stroke={1.25} /></div>
+                    <div className="text-sm font-medium mb-1">Перетащите файл сюда</div>
+                    <div className="text-xs text-zinc-500">.xlsx, .csv до 25MB</div>
+                    <button className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm border border-white/10 transition-colors">
+                      <I.Spreadsheet size={14}/> Выбрать файл
+                    </button>
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    {['Iiko Office','R-Keeper','Poster'].map(p => (
+                      <div key={p} className="px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/10 text-center text-xs text-zinc-400">{p}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* CTA */}
+            <button onClick={onGenerate} disabled={!canGenerate}
+              className={`mt-4 w-full flex items-center justify-center gap-2.5 px-6 py-4 rounded-2xl font-medium transition-all ${
+                canGenerate
+                  ? 'bg-gradient-to-r from-indigo-500 to-pink-500 text-white shadow-xl shadow-indigo-500/25 hover:shadow-indigo-500/45 hover:scale-[1.005]'
+                  : 'bg-white/5 text-zinc-600 cursor-not-allowed border border-white/10'
+              }`}>
+              <I.Sparkles size={17} stroke={2}/>
+              Сгенерировать отчёт
+              {!canGenerate && <span className="text-[11px] font-normal text-zinc-500 hidden sm:inline">— заполните концепцию, выручку и косты</span>}
+            </button>
+          </div>
+
+          {/* Live preview */}
+          <div className="lg:col-span-4">
+            <LivePreview data={data} concept={concept} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ LIVE PREVIEW ============
+function LivePreview({ data, concept }) {
+  const radarData = useMemo(() => {
+    if (!concept) return [];
+    const score = (actual, [lo, hi]) => {
+      if (actual <= 0) return 0;
+      if (actual <= lo) return 100;
+      if (actual <= hi) return 100 - ((actual - lo) / (hi - lo)) * 30;
+      return Math.max(0, 70 - (actual - hi) * 5);
+    };
+    return [
+      { metric: 'Фудкост', actual: score(data.foodCost, concept.benchmarks.foodCost), bench: 85 },
+      { metric: 'Лейбор', actual: score(data.laborCost, concept.benchmarks.laborCost), bench: 85 },
+      { metric: 'Напитки', actual: score(data.drinkCost, concept.benchmarks.drinkCost), bench: 85 },
+      { metric: 'Списания', actual: data.wastage > 0 ? Math.max(0, 100 - data.wastage * 12) : 0, bench: 85 },
+      { metric: 'Инвент.', actual: data.inventoryGap > 0 ? Math.max(0, 100 - data.inventoryGap * 25) : 0, bench: 85 },
+    ];
+  }, [data, concept]);
+
+  const barData = useMemo(() => {
+    if (!concept) return [];
+    return [
+      { name: 'FC', value: data.foodCost, mid: (concept.benchmarks.foodCost[0] + concept.benchmarks.foodCost[1]) / 2 },
+      { name: 'LC', value: data.laborCost, mid: (concept.benchmarks.laborCost[0] + concept.benchmarks.laborCost[1]) / 2 },
+      { name: 'DC', value: data.drinkCost, mid: (concept.benchmarks.drinkCost[0] + concept.benchmarks.drinkCost[1]) / 2 },
+      { name: 'Аренда', value: data.rent, mid: 12 },
+    ];
+  }, [data, concept]);
+
+  const estProfit = useMemo(() => {
+    if (!data.revenue) return 0;
+    const totalCost = (data.foodCost + data.laborCost + (data.rent || 12) + (data.drinkCost * 0.2)) / 100;
+    return Math.max(0, data.revenue * (1 - totalCost));
+  }, [data]);
+
+  return (
+    <div className="rounded-2xl border border-white/10 backdrop-blur-sm p-5 sticky top-4"
+      style={{ background:'linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))' }}>
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" style={{boxShadow:'0 0 8px #34d399', animation:'pulse 2s infinite'}}></span>
+          <span className="text-[11px] uppercase tracking-wider text-zinc-500 font-medium">Live preview</span>
+        </div>
+        <span className="text-[10px] text-zinc-600 font-mono">realtime</span>
+      </div>
+
+      {!concept ? (
+        <div className="py-12 text-center text-zinc-600 text-sm">
+          <div className="grid place-items-center mb-3 opacity-30"><I.Activity size={28} stroke={1.25}/></div>
+          Выберите концепцию,<br/>чтобы увидеть превью
+        </div>
+      ) : (
+        <>
+          <div className="my-3 pb-4 border-b border-white/5">
+            <div className="text-[11px] text-zinc-500 mb-1">Расчётная прибыль / мес</div>
+            <div className="font-mono text-3xl font-medium tracking-tight bg-gradient-to-r from-indigo-300 to-pink-300 bg-clip-text text-transparent">
+              <AnimatedNumber value={estProfit} format={(v) => Math.round(v).toLocaleString('ru-RU') + ' ₽'} />
+            </div>
+            <div className="text-[10px] text-zinc-600 mt-1">приблизительно, по введённым данным</div>
+          </div>
+
+          <div className="text-[11px] uppercase tracking-wider text-zinc-500 font-medium mb-2">Показатели vs норма</div>
+          <div className="h-44 -mx-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={radarData} outerRadius="72%">
+                <defs>
+                  <linearGradient id="radarGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#6366F1" stopOpacity={0.7} />
+                    <stop offset="100%" stopColor="#EC4899" stopOpacity={0.7} />
+                  </linearGradient>
+                </defs>
+                <PolarGrid stroke="rgba(255,255,255,0.08)" />
+                <PolarAngleAxis dataKey="metric" tick={{ fill: '#71717A', fontSize: 10 }} />
+                <Radar dataKey="bench" stroke="rgba(255,255,255,0.15)" fill="rgba(255,255,255,0.04)" strokeDasharray="3 3" />
+                <Radar dataKey="actual" stroke="#EC4899" strokeWidth={2} fill="url(#radarGrad)" fillOpacity={0.5} isAnimationActive={true} animationDuration={500}/>
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="text-[11px] uppercase tracking-wider text-zinc-500 font-medium mb-2 mt-2">Косты, %</div>
+          <div className="h-32">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={barData} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gradFC" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#6366F1"/><stop offset="100%" stopColor="#4F46E5"/></linearGradient>
+                  <linearGradient id="gradLC" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#A855F7"/><stop offset="100%" stopColor="#7E22CE"/></linearGradient>
+                  <linearGradient id="gradDC" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#EC4899"/><stop offset="100%" stopColor="#BE185D"/></linearGradient>
+                  <linearGradient id="gradRent" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#F59E0B"/><stop offset="100%" stopColor="#B45309"/></linearGradient>
+                </defs>
+                <XAxis dataKey="name" tick={{ fill:'#71717A', fontSize:10 }} axisLine={false} tickLine={false}/>
+                <YAxis tick={{ fill:'#71717A', fontSize:9 }} axisLine={false} tickLine={false}/>
+                <Tooltip cursor={{ fill:'rgba(255,255,255,0.03)' }}
+                  contentStyle={{ background:'#16161D', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'10px', fontSize:'11px' }}/>
+                <Bar dataKey="value" radius={[6,6,0,0]} animationDuration={400}>
+                  {barData.map((_, i) => <Cell key={i} fill={['url(#gradFC)','url(#gradLC)','url(#gradDC)','url(#gradRent)'][i]} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            <div className="px-3 py-2 rounded-lg bg-white/[0.03] border border-white/5">
+              <div className="text-[10px] text-zinc-500">Выручка</div>
+              <div className="font-mono text-sm">
+                <AnimatedNumber value={data.revenue} format={(v) => Math.round(v / 1000).toLocaleString('ru-RU') + 'К ₽'} />
+              </div>
+            </div>
+            <div className="px-3 py-2 rounded-lg bg-white/[0.03] border border-white/5">
+              <div className="text-[10px] text-zinc-500">Ср. чек</div>
+              <div className="font-mono text-sm">
+                <AnimatedNumber value={data.avgCheck} format={(v) => Math.round(v).toLocaleString('ru-RU') + ' ₽'} />
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============ REPORT GENERATION ============
+function generateReport(data, concept) {
+  const c = concept;
+  const fcMid = (c.benchmarks.foodCost[0] + c.benchmarks.foodCost[1]) / 2;
+  const lcMid = (c.benchmarks.laborCost[0] + c.benchmarks.laborCost[1]) / 2;
+  const dcMid = (c.benchmarks.drinkCost[0] + c.benchmarks.drinkCost[1]) / 2;
+
+  const status = (val, [lo, hi]) => {
+    if (val === 0) return 'unknown';
+    if (val < lo - 3) return 'warn';
+    if (val <= hi) return 'good';
+    if (val <= hi + 3) return 'warn';
+    return 'critical';
+  };
+
+  const metrics = [
+    { key:'foodCost', label:'Фудкост', value:data.foodCost, benchmark:`${c.benchmarks.foodCost[0]}–${c.benchmarks.foodCost[1]}%`,
+      delta: data.foodCost - fcMid, status: status(data.foodCost, c.benchmarks.foodCost),
+      formula: 'Стоимость продуктов ÷ Выручка × 100. Норма зависит от концепции.', unit:'%' },
+    { key:'laborCost', label:'Лейборкост', value:data.laborCost, benchmark:`${c.benchmarks.laborCost[0]}–${c.benchmarks.laborCost[1]}%`,
+      delta: data.laborCost - lcMid, status: status(data.laborCost, c.benchmarks.laborCost),
+      formula:'(ФОТ + налоги) ÷ Выручка × 100. Включает все смены и доплаты.', unit:'%' },
+    { key:'drinkCost', label:'Кост напитков', value:data.drinkCost, benchmark:`${c.benchmarks.drinkCost[0]}–${c.benchmarks.drinkCost[1]}%`,
+      delta: data.drinkCost - dcMid, status: status(data.drinkCost, c.benchmarks.drinkCost),
+      formula:'Себестоимость напитков ÷ Выручка от напитков × 100.', unit:'%' },
+    { key:'wastage', label:'Списания', value:data.wastage, benchmark:'≤ 5%', delta: data.wastage - 3,
+      status: data.wastage === 0 ? 'unknown' : data.wastage <= 3 ? 'good' : data.wastage <= 5 ? 'warn' : 'critical',
+      formula:'Объём списаний ÷ Объём закупа × 100.', unit:'%' },
+    { key:'inventoryGap', label:'Инвентаризация', value:data.inventoryGap, benchmark:'≤ 2%', delta: data.inventoryGap - 1,
+      status: data.inventoryGap === 0 ? 'unknown' : data.inventoryGap <= 1 ? 'good' : data.inventoryGap <= 2 ? 'warn' : 'critical',
+      formula:'Расхождение факт/учёт по итогам инвентаризации, %.', unit:'%' },
+    { key:'avgCheck', label:'Средний чек', value:data.avgCheck, benchmark:'— зависит от позиционирования',
+      delta:0, status: data.avgCheck > 0 ? 'good' : 'unknown',
+      formula:'Выручка ÷ Кол-во чеков.', unit:' ₽' },
+  ];
+
+  const weights = { foodCost:0.25, laborCost:0.25, drinkCost:0.15, wastage:0.15, inventoryGap:0.15, avgCheck:0.05 };
+  const subScore = (m) => m.status === 'unknown' ? 70 : m.status === 'good' ? 92 : m.status === 'warn' ? 60 : 30;
+  const score = Math.round(metrics.reduce((acc, m) => acc + subScore(m) * (weights[m.key] || 0), 0));
+
+  const anomalies = [];
+  if (data.foodCost > c.benchmarks.foodCost[1] + 3) {
+    anomalies.push({ level:'critical', title:'Фудкост существенно выше нормы',
+      desc:`Текущий показатель ${data.foodCost}% при норме ${c.benchmarks.foodCost.join('–')}% для «${c.name}». Возможные причины: завышенные закупочные цены, неоптимальные техкарты, потери на этапе приёмки или хранения.`,
+      action:'Провести ABC-анализ закупок. Пересмотреть техкарты по топ-10 позиций. Ввести двойной контроль приёмки.' });
+  } else if (data.foodCost > c.benchmarks.foodCost[1]) {
+    anomalies.push({ level:'warn', title:'Фудкост на верхней границе коридора',
+      desc:`${data.foodCost}% при коридоре ${c.benchmarks.foodCost.join('–')}%. Допустимо, но создаёт давление на маржу.`,
+      action:'Проверить техкарты топ-3 блюд по объёму. Сравнить закупочные цены с альтернативными поставщиками.' });
+  }
+  if (data.laborCost > c.benchmarks.laborCost[1] + 3) {
+    anomalies.push({ level:'critical', title:'Лейборкост превышает норму',
+      desc:`${data.laborCost}% при норме ${c.benchmarks.laborCost.join('–')}%. Возможны: избыточный штат на пиковых сменах, несбалансированный график, переработки.`,
+      action:'Построить почасовую матрицу загрузки. Сократить смены в low-traffic окнах на 15–25%.' });
+  }
+  if (data.wastage > 5) {
+    anomalies.push({ level:'critical', title:'Списания выше нормы',
+      desc:`${data.wastage}% при норме ≤ 5%. Паттерн соответствует неэффективному планированию закупа или порче на хранении.`,
+      action:'Внедрить ежедневный отчёт по списаниям с указанием причины. Пересмотреть FIFO-процедуры на складе.' });
+  }
+  if (data.inventoryGap > 2) {
+    anomalies.push({ level:'critical', title:'Расхождение инвентаризации выше нормы',
+      desc:`${data.inventoryGap}% при норме ≤ 2%. Паттерн соответствует неучтённым потерям. Источники: ошибки списания, недовложения, неточности в техкартах.`,
+      action:'Рекомендуется внеплановая инвентаризация по 5 топ-категориям. Сверить техкарты с фактическим расходом за период.' });
+  }
+  if (data.discrepancies > 10000) {
+    anomalies.push({ level:'warn', title:'Расхождения по чекам',
+      desc:`${data.discrepancies.toLocaleString('ru-RU')} ₽ за период. Возможны: ошибки официантов, отменённые заказы, незакрытые столы.`,
+      action:'Проверить лог отмен и сторно за период. Ввести двухфакторное подтверждение для крупных отмен.' });
+  }
+  if (data.drinkCost > c.benchmarks.drinkCost[1] + 3) {
+    anomalies.push({ level:'warn', title:'Кост напитков выше нормы',
+      desc:`${data.drinkCost}% при норме ${c.benchmarks.drinkCost.join('–')}%. Типичные причины: переливы, неучтённый shot, ошибки в калькуляции.`,
+      action:'Установить мерные стаканы на бар. Провести контрольные проливы. Сверить миксологические карты.' });
+  }
+  if (anomalies.length === 0) {
+    anomalies.push({ level:'good', title:'Ключевые метрики в коридоре нормы',
+      desc:'Основные показатели соответствуют бенчмаркам выбранной концепции. Сохраняйте текущие операционные практики.',
+      action:'Зафиксировать текущие SOP. Установить квартальный мониторинг для раннего выявления отклонений.' });
+  }
+
+  const recs = [];
+  if (data.foodCost > c.benchmarks.foodCost[1]) {
+    const reduce = Math.min(3, data.foodCost - c.benchmarks.foodCost[1]);
+    const impact = (data.revenue * reduce) / 100;
+    recs.push({ title:`Снижение фудкоста на ${reduce.toFixed(1)}%`,
+      detail:'через ABC-анализ закупок, ревизию техкарт и тендер на поставщиков',
+      impact: `+${Math.round(impact).toLocaleString('ru-RU')} ₽/мес` });
+  }
+  if (data.laborCost > c.benchmarks.laborCost[1]) {
+    const reduce = Math.min(3, data.laborCost - c.benchmarks.laborCost[1]);
+    const impact = (data.revenue * reduce) / 100;
+    recs.push({ title:`Оптимизация лейборкоста на ${reduce.toFixed(1)}%`,
+      detail:'через почасовую матрицу загрузки и пересмотр графика',
+      impact: `+${Math.round(impact).toLocaleString('ru-RU')} ₽/мес` });
+  }
+  if (data.wastage > 5) {
+    const impact = (data.revenue * (data.wastage - 3)) / 100 * 0.4;
+    recs.push({ title:'Снижение списаний до целевого уровня',
+      detail:'через ежедневный учёт причин и FIFO-процедуры на складе',
+      impact: `+${Math.round(impact).toLocaleString('ru-RU')} ₽/мес` });
+  }
+  if (data.inventoryGap > 2) {
+    const impact = (data.revenue * (data.inventoryGap - 1)) / 100;
+    recs.push({ title:'Устранение расхождений инвентаризации',
+      detail:'через сверку техкарт и внеплановую инвентаризацию',
+      impact: `+${Math.round(impact).toLocaleString('ru-RU')} ₽/мес` });
+  }
+  if (data.avgCheck > 0 && data.avgCheck < 1500) {
+    const impact = (data.revenue * 0.05);
+    recs.push({ title:'Рост среднего чека через апселл и допсейлинг',
+      detail:'обучение персонала рекомендательным скриптам, пересборка меню',
+      impact: `+${Math.round(impact).toLocaleString('ru-RU')} ₽/мес` });
+  }
+  if (recs.length === 0) {
+    recs.push({ title:'Поддержание текущих метрик',
+      detail:'настройка автоматического мониторинга ключевых показателей',
+      impact:'стабильность маржи' });
+  }
+
+  return { score, metrics, anomalies, recommendations: recs };
+}
+
+// ============ HEALTH SCORE ============
+function HealthScore({ score }) {
+  const [animScore, setAnimScore] = useState(0);
+  useEffect(() => {
+    const startTime = performance.now();
+    const dur = 1200;
+    const tick = (now) => {
+      const t = Math.min(1, (now - startTime) / dur);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setAnimScore(score * eased);
+      if (t < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [score]);
+
+  const r = 80, c = 2 * Math.PI * r;
+  const offset = c * (1 - animScore / 100);
+  const label = score >= 80 ? 'Отлично' : score >= 65 ? 'Хорошо' : score >= 50 ? 'Внимание' : 'Критично';
+  const labelColor = score >= 80 ? 'text-emerald-300' : score >= 65 ? 'text-indigo-300' : score >= 50 ? 'text-amber-300' : 'text-rose-300';
+
+  return (
+    <div className="relative grid place-items-center">
+      <svg width="200" height="200" viewBox="0 0 200 200" className="-rotate-90">
+        <defs>
+          <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#6366F1" />
+            <stop offset="100%" stopColor="#EC4899" />
+          </linearGradient>
+        </defs>
+        <circle cx="100" cy="100" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10"/>
+        <circle cx="100" cy="100" r={r} fill="none" stroke="url(#scoreGrad)" strokeWidth="10"
+          strokeLinecap="round" strokeDasharray={c} strokeDashoffset={offset}
+          style={{ transition:'stroke-dashoffset 0.05s linear', filter:'drop-shadow(0 0 12px rgba(236,72,153,0.4))' }}/>
+      </svg>
+      <div className="absolute inset-0 grid place-items-center">
+        <div className="text-center">
+          <div className="font-mono text-5xl font-medium tracking-tight">{Math.round(animScore)}</div>
+          <div className={`text-xs mt-1 font-medium ${labelColor}`}>{label}</div>
+          <div className="text-[10px] text-zinc-500 mt-0.5 uppercase tracking-widest">health score</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ STATUS BADGE ============
+function StatusBadge({ status }) {
+  const map = {
+    good: { dot:'bg-emerald-400', text:'text-emerald-300', bg:'bg-emerald-500/10', border:'border-emerald-500/20', label:'в норме' },
+    warn: { dot:'bg-amber-400', text:'text-amber-300', bg:'bg-amber-500/10', border:'border-amber-500/20', label:'внимание' },
+    critical: { dot:'bg-rose-400', text:'text-rose-300', bg:'bg-rose-500/10', border:'border-rose-500/20', label:'критично' },
+    unknown: { dot:'bg-zinc-500', text:'text-zinc-400', bg:'bg-zinc-500/10', border:'border-zinc-500/20', label:'нет данных' },
+  };
+  const s = map[status];
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md ${s.bg} ${s.border} border text-[10px] font-medium ${s.text}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`}></span>
+      {s.label}
+    </span>
+  );
+}
+
+// ============ METRIC CARD ============
+function MetricCard({ metric }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <div onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+      className="relative rounded-2xl bg-white/[0.025] border border-white/10 p-4 hover:bg-white/[0.04] hover:border-white/20 transition-all">
+      <div className="flex items-center justify-between mb-2.5">
+        <span className="text-xs text-zinc-400">{metric.label}</span>
+        <StatusBadge status={metric.status} />
+      </div>
+      <div className="font-mono text-2xl font-medium tracking-tight">
+        {metric.value > 0 ? metric.value.toLocaleString('ru-RU') + metric.unit : '—'}
+      </div>
+      <div className="flex items-center justify-between mt-2 text-[11px] text-zinc-500">
+        <span>норма: {metric.benchmark}</span>
+        {metric.value > 0 && metric.delta !== 0 && (
+          <span className={`font-mono ${metric.delta > 0 ? 'text-rose-300' : 'text-emerald-300'}`}>
+            {metric.delta > 0 ? '+' : ''}{metric.delta.toFixed(1)}{metric.unit}
+          </span>
+        )}
+      </div>
+      {hover && (
+        <div className="absolute -top-2 left-1/2 -translate-x-1/2 -translate-y-full z-20 w-64 p-3 rounded-xl bg-[#1F1F28] border border-white/10 shadow-2xl text-[11px] text-zinc-300 leading-relaxed pointer-events-none">
+          <div className="flex items-center gap-1.5 mb-1 text-zinc-500 uppercase text-[9px] tracking-widest"><I.Info size={11}/> как считаем</div>
+          {metric.formula}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ ANOMALY CARD ============
+function AnomalyCard({ anomaly, index }) {
+  const [open, setOpen] = useState(index === 0 && anomaly.level !== 'good');
+  const map = {
+    critical: { emoji:'🔴', bg:'from-rose-500/10 to-rose-500/0', border:'border-rose-500/20' },
+    warn: { emoji:'🟡', bg:'from-amber-500/10 to-amber-500/0', border:'border-amber-500/20' },
+    good: { emoji:'🟢', bg:'from-emerald-500/10 to-emerald-500/0', border:'border-emerald-500/20' },
+  };
+  const s = map[anomaly.level];
+  return (
+    <div className={`rounded-2xl border ${s.border} bg-gradient-to-br ${s.bg} backdrop-blur-sm overflow-hidden transition-all`}>
+      <button onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-3 p-4 text-left hover:bg-white/[0.02] transition-colors">
+        <span className="text-lg">{s.emoji}</span>
+        <span className="flex-1 text-sm font-medium">{anomaly.title}</span>
+        <I.ChevronDown size={15} className={`text-zinc-500 transition-transform ${open ? 'rotate-180' : ''}`}/>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 fade-up">
+          <p className="text-xs text-zinc-400 leading-relaxed mb-3">{anomaly.desc}</p>
+          <div className="rounded-xl bg-white/[0.03] border border-white/10 p-3">
+            <div className="flex items-center gap-1.5 mb-1.5 text-[10px] uppercase tracking-widest text-zinc-500">
+              <I.Target size={11}/> рекомендация
+            </div>
+            <p className="text-xs text-zinc-300 leading-relaxed">{anomaly.action}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ WHAT-IF SIMULATOR ============
+function WhatIfSimulator({ data, concept }) {
+  const [open, setOpen] = useState(false);
+  const [adj, setAdj] = useState({ foodCost: 0, laborCost: 0, wastage: 0 });
+
+  if (!data.revenue) return null;
+
+  const baseCost = ((data.foodCost + data.laborCost + (data.rent || 12) + (data.drinkCost * 0.2)) / 100);
+  const baseProfit = data.revenue * (1 - baseCost);
+  const newCost = ((data.foodCost + adj.foodCost + data.laborCost + adj.laborCost + (data.rent || 12) + (data.drinkCost * 0.2)) / 100);
+  const wasteImpact = adj.wastage * (data.revenue / 100) * 0.4;
+  const newProfit = data.revenue * (1 - newCost) - wasteImpact;
+  const delta = newProfit - baseProfit;
+
+  return (
+    <div className="rounded-2xl bg-gradient-to-br from-indigo-500/[0.06] to-pink-500/[0.04] border border-white/10 backdrop-blur-sm overflow-hidden">
+      <button onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-3 p-4 hover:bg-white/[0.02] transition-colors">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-pink-500 grid place-items-center">
+          <I.Sliders size={16} className="text-white"/>
+        </div>
+        <div className="flex-1 text-left">
+          <div className="text-sm font-medium">Что если?</div>
+          <div className="text-[11px] text-zinc-500">Симуляция изменения метрик</div>
+        </div>
+        <I.ChevronDown size={15} className={`text-zinc-500 transition-transform ${open ? 'rotate-180' : ''}`}/>
+      </button>
+      {open && (
+        <div className="px-4 pb-5 fade-up">
+          <div className="space-y-4 mt-2">
+            {[
+              { key:'foodCost', label:'Фудкост', current:data.foodCost, min:-5, max:5, step:0.5, suffix:'%' },
+              { key:'laborCost', label:'Лейборкост', current:data.laborCost, min:-5, max:5, step:0.5, suffix:'%' },
+              { key:'wastage', label:'Списания', current:data.wastage, min:-5, max:5, step:0.5, suffix:'%' },
+            ].map(s => (
+              <div key={s.key}>
+                <div className="flex items-center justify-between mb-1.5 text-xs">
+                  <span className="text-zinc-400">{s.label}</span>
+                  <span className="font-mono text-zinc-300">
+                    {s.current}{s.suffix} <span className="text-zinc-600">→</span> {(s.current + adj[s.key]).toFixed(1)}{s.suffix}
+                    {adj[s.key] !== 0 && (
+                      <span className={`ml-2 ${adj[s.key] > 0 ? 'text-rose-300' : 'text-emerald-300'}`}>
+                        ({adj[s.key] > 0 ? '+' : ''}{adj[s.key]})
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <input type="range" min={s.min} max={s.max} step={s.step}
+                  value={adj[s.key]} onChange={(e) => setAdj({ ...adj, [s.key]: Number(e.target.value) })}
+                  className="w-full"/>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 p-4 rounded-xl bg-white/[0.04] border border-white/10">
+            <div className="text-[11px] text-zinc-500 uppercase tracking-wider mb-1">Прогноз прибыли</div>
+            <div className="flex items-baseline gap-2">
+              <span className="font-mono text-xl font-medium">
+                <AnimatedNumber value={newProfit} format={(v) => Math.round(v).toLocaleString('ru-RU') + ' ₽'} duration={300}/>
+              </span>
+              <span className={`text-xs font-mono ${delta > 0 ? 'text-emerald-300' : delta < 0 ? 'text-rose-300' : 'text-zinc-500'}`}>
+                {delta > 0 ? '+' : ''}<AnimatedNumber value={delta} format={(v) => Math.round(v).toLocaleString('ru-RU')} duration={300}/> ₽
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ REPORT SCREEN ============
+function ReportScreen({ data, concept }) {
+  const report = useMemo(() => generateReport(data, concept), [data, concept]);
+  const [savedToast, setSavedToast] = useState(false);
+
+  const handleAction = (action) => {
+    setSavedToast(action);
+    setTimeout(() => setSavedToast(false), 2200);
+  };
+
+  return (
+    <div className="px-5 lg:px-10 pb-12 fade-up">
+      <div className="max-w-7xl mx-auto">
+        {/* Top section */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 mb-5">
+          {/* Score */}
+          <div className="lg:col-span-4 rounded-2xl bg-gradient-to-br from-white/[0.04] to-white/[0.01] border border-white/10 backdrop-blur-sm p-6 grid place-items-center">
+            <div className="flex flex-col items-center">
+              <div className="text-[11px] uppercase tracking-widest text-zinc-500 mb-4">Здоровье бизнеса</div>
+              <HealthScore score={report.score}/>
+              <div className="text-xs text-zinc-500 mt-4 text-center max-w-[200px]">
+                Сводный показатель по 6 ключевым метрикам с весовыми коэффициентами
+              </div>
+            </div>
+          </div>
+
+          {/* Summary + Actions */}
+          <div className="lg:col-span-8 flex flex-col gap-3">
+            <div className="rounded-2xl bg-white/[0.025] border border-white/10 backdrop-blur-sm p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-lg">{concept.emoji}</span>
+                <h3 className="text-base font-medium">Аудит: {concept.name}</h3>
+                <span className="ml-auto text-[11px] text-zinc-500 font-mono">
+                  {new Date().toLocaleDateString('ru-RU')}
+                </span>
+              </div>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                Проанализировано <span className="text-zinc-200 font-mono">6</span> ключевых метрик и
+                <span className="text-zinc-200 font-mono"> {report.anomalies.length}</span> {report.anomalies.length === 1 ? 'аномалия' : 'аномалий'}.
+                Сформировано <span className="text-zinc-200 font-mono">{report.recommendations.length}</span> рекомендаций
+                с прогнозом эффекта по выручке <span className="text-zinc-200 font-mono">{Math.round(data.revenue / 1000).toLocaleString('ru-RU')}К ₽/мес</span>.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { i:<I.Download size={14}/>, l:'PDF', a:'pdf' },
+                { i:<I.Spreadsheet size={14}/>, l:'Excel', a:'xlsx' },
+                { i:<I.Save size={14}/>, l:'Сохранить', a:'save' },
+                { i:<I.Share size={14}/>, l:'Поделиться', a:'share' },
+              ].map(b => (
+                <button key={b.a} onClick={() => handleAction(b.a)}
+                  className="flex items-center justify-center gap-2 px-3 py-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-sm transition-colors">
+                  {b.i}
+                  <span>{b.l}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Metrics grid */}
+        <h3 className="text-sm font-medium text-zinc-300 mb-3 mt-2 flex items-center gap-2">
+          <I.BarChart size={15} className="text-indigo-400"/> Ключевые метрики
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+          {report.metrics.map((m, i) => (
+            <div key={m.key} style={{animationDelay:`${i*0.04}s`}} className="fade-up">
+              <MetricCard metric={m} />
+            </div>
+          ))}
+        </div>
+
+        {/* Anomalies + Recommendations */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+          <div>
+            <h3 className="text-sm font-medium text-zinc-300 mb-3 flex items-center gap-2">
+              <I.AlertTriangle size={15} className="text-amber-400"/> Аномалии и риски
+            </h3>
+            <div className="space-y-2">
+              {report.anomalies.map((a, i) => (
+                <div key={i} style={{animationDelay:`${i*0.06}s`}} className="fade-up">
+                  <AnomalyCard anomaly={a} index={i} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-zinc-300 mb-3 flex items-center gap-2">
+              <I.Zap size={15} className="text-pink-400"/> Что делать
+            </h3>
+            <div className="rounded-2xl bg-gradient-to-br from-indigo-500/[0.06] to-pink-500/[0.03] border border-white/10 backdrop-blur-sm p-5">
+              <div className="text-[11px] uppercase tracking-widest text-zinc-500 mb-4">AI-рекомендации</div>
+              <ol className="space-y-4">
+                {report.recommendations.map((r, i) => (
+                  <li key={i} className="flex gap-3 fade-up" style={{animationDelay:`${0.2 + i*0.08}s`}}>
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-pink-500 grid place-items-center text-[11px] font-mono font-medium">
+                      {i + 1}
+                    </span>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium leading-snug">{r.title}</div>
+                      <div className="text-[11px] text-zinc-500 mt-0.5 leading-relaxed">{r.detail}</div>
+                      <div className="inline-flex items-center gap-1.5 mt-2 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20">
+                        <span className="w-1 h-1 rounded-full bg-emerald-400"></span>
+                        <span className="text-[11px] font-mono text-emerald-300">{r.impact}</span>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </div>
+        </div>
+
+        {/* What-if */}
+        <WhatIfSimulator data={data} concept={concept} />
+
+        {/* Toast */}
+        {savedToast && (
+          <div className="fixed bottom-6 right-6 px-4 py-3 rounded-xl bg-[#1F1F28] border border-white/10 shadow-2xl text-sm flex items-center gap-2.5 fade-up z-50">
+            <I.Check size={15} className="text-emerald-400"/>
+            <span>
+              {savedToast === 'pdf' && 'PDF готов (демо)'}
+              {savedToast === 'xlsx' && 'Excel готов (демо)'}
+              {savedToast === 'save' && 'Аудит сохранён'}
+              {savedToast === 'share' && 'Ссылка скопирована'}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============ APP ============
+function App() {
+  const [dark, setDark] = useState(true);
+  const [screen, setScreen] = useState('landing');
+  const [data, setData] = useState(INITIAL_DATA);
+  const [auditCount, setAuditCount] = useState(12847);
+
+  useEffect(() => {
+    document.body.classList.toggle('light', !dark);
+  }, [dark]);
+
+  const handleStart = () => {
+    setScreen('input');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleGenerate = () => {
+    setAuditCount(c => c + 1);
+    setScreen('report');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleBack = () => {
+    if (screen === 'report') setScreen('input');
+    else if (screen === 'input') setScreen('landing');
+  };
+
+  const handleLogo = () => {
+    setScreen('landing');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const concept = CONCEPTS.find(c => c.id === data.conceptId);
+
+  return (
+    <div className={dark ? 'dark min-h-screen' : 'min-h-screen'}>
+      {/* Background grain/grid effect */}
+      <div className="fixed inset-0 pointer-events-none opacity-[0.04]" style={{
+        backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.5) 1px, transparent 0)`,
+        backgroundSize: '32px 32px'
+      }}></div>
+
+      <Header dark={dark} setDark={setDark} onLogo={handleLogo}
+        showBack={screen !== 'landing'} onBack={handleBack}/>
+
+      {screen === 'landing' && <Landing onStart={handleStart} auditCount={auditCount}/>}
+      {screen === 'input' && <InputDashboard data={data} setData={setData} onGenerate={handleGenerate}/>}
+      {screen === 'report' && concept && <ReportScreen data={data} concept={concept}/>}
+
+      {/* Footer */}
+      <footer className="px-5 lg:px-10 py-6 border-t border-white/5 mt-auto">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-zinc-600">
+          <div className="flex items-center gap-3">
+            <span className="font-mono">© 2026 РестАудит</span>
+            <span className="hidden sm:inline">·</span>
+            <span>AI-рекомендации носят информационный характер и не являются юридической, аудиторской или налоговой консультацией</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <span>v1.0</span>
+            <span>Made with</span>
+            <span className="bg-gradient-to-r from-indigo-400 to-pink-400 bg-clip-text text-transparent font-medium">♥</span>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
